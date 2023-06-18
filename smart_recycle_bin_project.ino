@@ -1,25 +1,21 @@
-
 #include <LiquidCrystal.h>
 
+// Define the pin numbers for the components
 const int TRIGGER_PIN = 2;
 const int ECHO_PIN = 3;
 const int PRESSURE_SENSOR_PIN = A0;
 const int LOADCELL_DOUT_PIN = 4;
 const int LOADCELL_SCK_PIN = 5;
-
 const int MOTOR_A_EN = 6;
 const int MOTOR_A_IN1 = 7;
 const int MOTOR_A_IN2 = 8;
-const int MOTOR_A_SPEED = 255;
-
 const int GREEN_LED_PIN = 9;
 const int YELLOW_LED_PIN = 10;
 const int RED_LED_PIN = 11;
 const int LIMIT_SWITCH_PIN = 12;
 const int DOOR_SWITCH_PIN = 13;
-const int SIM800L_TX_PIN = 19; //SIM800L TX -> Arduino Due RX1 (pin 19)
-const int SIM800L_RX_PIN = 18;//SIM800L RX -> Arduino Due TX1 (pin 18)
-
+const int SIM800L_TX_PIN = 19;
+const int SIM800L_RX_PIN = 18;
 const int LCD_RS = A3;
 const int LCD_E = A4;
 const int LCD_D4 = A5;
@@ -27,6 +23,7 @@ const int LCD_D5 = A6;
 const int LCD_D6 = A7;
 const int LCD_D7 = A8;
 
+// Define the values for the distance and pressure thresholds, as well as the maximum compression count and delay times
 const int MAX_DISTANCE = 70;
 const int MIN_DISTANCE = 30;
 const int MAX_PRESSURE = 2;
@@ -35,23 +32,23 @@ const int MAX_COMPRESSION_COUNT = 3;
 const int OPEN_DELAY = 5000;
 const int CLOSE_DELAY = 5000;
 
+// Declare variables to keep track of the system state
 int compression_count = 0;
 bool door_closed = false;
 bool basket_full = false;
+bool is_compressing = false;
 int pressure_value = 0;
 int pressure = 0;
 int count = 10;
 
-//SoftwareSerial sim800l(SIM800L_RX_PIN, SIM800L_TX_PIN);
-
-
-
-
+// Define the phone number and message for the alert message
 String phoneNumber = "+1234567890";
 String message = "تم ملء السلة";
 
+// Create an instance of the LiquidCrystal library
 LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
 
+// Declare function prototypes
 void updateBasketStatus(int distance);
 void compressTrash();
 void updateDoorStatus();
@@ -60,6 +57,7 @@ void sendAlertMessage();
 void updateLCD(int distance);
 
 void setup() {
+  // Initialize the pin modes for the components
   pinMode(TRIGGER_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
   pinMode(PRESSURE_SENSOR_PIN, INPUT);
@@ -72,15 +70,19 @@ void setup() {
   pinMode(LIMIT_SWITCH_PIN, INPUT_PULLUP);
   pinMode(DOOR_SWITCH_PIN, INPUT_PULLUP);
 
+  // Initialize the LCD display
   lcd.begin(16, 2);
 
-  Serial1.begin(9600); // Initialize Serial1 for communication with SIM800L
+  // Initialize the Serial1 communication for the SIM800L module
+  Serial1.begin(9600);
 
+  // Update the initial system state
   updateBasketStatus(0);
   updateDoorStatus();
 }
 
 void loop() {
+  // Continuously update the system state
   updateDoorStatus();
   int distance = getDistance();
   updateBasketStatus(distance);
@@ -89,11 +91,13 @@ void loop() {
 }
 
 void updateBasketStatus(int distance) {
+  // Update the system state based on the distance value
   if (distance >= MAX_DISTANCE) {
     digitalWrite(GREEN_LED_PIN, HIGH);
     digitalWrite(YELLOW_LED_PIN, LOW);
     digitalWrite(RED_LED_PIN, LOW);
     basket_full = false;
+    is_compressing = false;
   } else if (distance <= MIN_DISTANCE) {
     digitalWrite(GREEN_LED_PIN, LOW);
     digitalWrite(YELLOW_LED_PIN, HIGH);
@@ -102,6 +106,7 @@ void updateBasketStatus(int distance) {
       if (compression_count < MAX_COMPRESSION_COUNT) {
         compressTrash();
         compression_count++;
+        is_compressing = true;
         delay(CLOSE_DELAY);
       } else {
         sendAlertMessage();
@@ -109,6 +114,7 @@ void updateBasketStatus(int distance) {
         digitalWrite(YELLOW_LED_PIN, LOW);
         digitalWrite(RED_LED_PIN, HIGH);
         basket_full = true;
+        is_compressing = false;
       }
     }
   } else {
@@ -116,53 +122,102 @@ void updateBasketStatus(int distance) {
     digitalWrite(YELLOW_LED_PIN, LOW);
     digitalWrite(RED_LED_PIN, LOW);
     basket_full = false;
+    is_compressing = false;
   }
 }
 
 void compressTrash() {
+  // Compress the trash and update the pressure value
   updatePressure();
 
-  while (pressure < PRESSURE_THRESHOLD) {
-    while (digitalRead(LIMIT_SWITCH_PIN) == HIGH) {
-      digitalWrite(MOTOR_A_IN1, HIGH);
-      digitalWrite(MOTOR_A_IN2, LOW);
-      analogWrite(MOTOR_A_EN, MOTOR_A_SPEED);
-    }
-    digitalWrite(MOTOR_A_EN, LOW);
-    delay(OPEN_DELAY);
-
-    while (digitalRead(DOOR_SWITCH_PIN) == HIGH) {
-      digitalWrite(MOTOR_A_IN1, HIGH);
-      digitalWrite(MOTOR_A_IN2, LOW);
-      analogWrite(MOTOR_A_EN, MOTOR_A_SPEED);
-    }
-    digitalWrite(MOTOR_A_EN, LOW);
-    delay(CLOSE_DELAY);
-    updatePressure();
+  if (!is_compressing) {
+    Serial.println("Compressing trash...");
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Compressing trash");
+    is_compressing = true;
   }
+
+  digitalWrite(MOTOR_A_EN, HIGH);
+  digitalWrite(MOTOR_A_IN1, HIGH);
+  digitalWrite(MOTOR_A_IN2, LOW);
+
+  while (pressure < MAX_PRESSURE) {
+    updatePressure();
+
+    if (digitalRead(LIMIT_SWITCH_PIN) == LOW) {
+      digitalWrite(MOTOR_A_EN, LOW);
+      digitalWrite(MOTOR_A_IN1, LOW);
+      digitalWrite(MOTOR_A_IN2, LOW);
+      delay(1000);
+      digitalWrite(MOTOR_A_EN, HIGH);
+      digitalWrite(MOTOR_A_IN1, LOW);
+      digitalWrite(MOTOR_A_IN2, HIGH);
+      delay(1000);
+    }
+  }
+
+  digitalWrite(MOTOR_A_EN, LOW);
+  digitalWrite(MOTOR_A_IN1, LOW);
+  digitalWrite(MOTOR_A_IN2, LOW);
 }
 
 void updateDoorStatus() {
-  door_closed = digitalRead(DOOR_SWITCH_PIN) == LOW;
+  // Update the status of the door
+  if (digitalRead(DOOR_SWITCH_PIN) == LOW) {
+    door_closed = true;
+  } else {
+    door_closed = false;
+  }
 }
 
 void updatePressure() {
-  pressure_value = analogRead(PRESSURE_SENSOR_PIN);
-  pressure = (pressure_value / 1023.0) * MAX_PRESSURE;
+  // Update the pressure value
+  int pressure_sum = 0;
+
+  for (int i = 0; i < count; i++) {
+    pressure_value = analogRead(PRESSURE_SENSOR_PIN);
+    pressure_sum += pressure_value;
+  }
+
+  pressure = pressure_sum / count;
 }
 
 void sendAlertMessage() {
+  // Send an alert message
+  Serial1.println("AT+CMGF=1");
+  delay(100);
+
   Serial1.print("AT+CMGS=\"");
   Serial1.print(phoneNumber);
   Serial1.println("\"");
-  delay(100);
+  delay(1000);
+
   Serial1.print(message);
   delay(100);
+
   Serial1.write(26);
-  delay(100);
+  delay(1000);
+}
+
+void updateLCD(int distance) {
+  // Update the LCD display
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Distance: ");
+  lcd.print(distance);
+  lcd.print(" cm");
+
+  lcd.setCursor(0, 1);
+  if (basket_full) {
+    lcd.print("Basket Full");
+  } else {
+    lcd.print("            ");
+  }
 }
 
 int getDistance() {
+  // Get the distance value from the ultrasonic sensor
   digitalWrite(TRIGGER_PIN, LOW);
   delayMicroseconds(2);
   digitalWrite(TRIGGER_PIN, HIGH);
@@ -170,28 +225,7 @@ int getDistance() {
   digitalWrite(TRIGGER_PIN, LOW);
 
   long duration = pulseIn(ECHO_PIN, HIGH);
-  int distance = duration * 0.0344 / 2;
+  int distance = duration / 58;
 
   return distance;
-}
-
-void updateLCD(int distance) {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Fill Level: ");
-  int fillPercentage = map(distance, MAX_DISTANCE, MIN_DISTANCE, 0, 100);
-  lcd.print(fillPercentage);
-  lcd.print("%");
-
-  lcd.setCursor(0, 1);
-
-  if (door_closed && !basket_full  ) {
-    lcd.print("Compressing...");
-  } else if (door_closed) {
-    lcd.print("Door: CLOSED");
-  } else {
-    lcd.print("Door: OPEN");
-  }
-
-
 }
