@@ -10,6 +10,7 @@ const int LOADCELL_SCK_PIN = 5;
 const int MOTOR_A_EN = 6;
 const int MOTOR_A_IN1 = 7;
 const int MOTOR_A_IN2 = 8;
+const int MOTOR_A_SPEED = 255;
 
 const int GREEN_LED_PIN = 9;
 const int YELLOW_LED_PIN = 10;
@@ -119,7 +120,7 @@ void compressTrash() {
     while (digitalRead(LIMIT_SWITCH_PIN) == HIGH) {
       digitalWrite(MOTOR_A_IN1, HIGH);
       digitalWrite(MOTOR_A_IN2, LOW);
-      analogWrite(MOTOR_A_EN, 255);
+      analogWrite(MOTOR_A_EN, MOTOR_A_SPEED);
     }
     digitalWrite(MOTOR_A_EN, LOW);
     delay(OPEN_DELAY);
@@ -127,7 +128,7 @@ void compressTrash() {
     while (digitalRead(DOOR_SWITCH_PIN) == HIGH) {
       digitalWrite(MOTOR_A_IN1, HIGH);
       digitalWrite(MOTOR_A_IN2, LOW);
-      analogWrite(MOTOR_A_EN, 255);
+      analogWrite(MOTOR_A_EN, MOTOR_A_SPEED);
     }
     digitalWrite(MOTOR_A_EN, LOW);
     delay(CLOSE_DELAY);
