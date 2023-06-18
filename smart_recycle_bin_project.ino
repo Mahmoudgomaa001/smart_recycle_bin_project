@@ -1,4 +1,4 @@
-#include <SoftwareSerial.h>
+
 #include <LiquidCrystal.h>
 
 const int TRIGGER_PIN = 2;
@@ -17,8 +17,8 @@ const int YELLOW_LED_PIN = 10;
 const int RED_LED_PIN = 11;
 const int LIMIT_SWITCH_PIN = 12;
 const int DOOR_SWITCH_PIN = 13;
-const int SIM800L_TX_PIN = A1;
-const int SIM800L_RX_PIN = A2;
+const int SIM800L_TX_PIN = 19; //SIM800L TX -> Arduino Due RX1 (pin 19)
+const int SIM800L_RX_PIN = 18;//SIM800L RX -> Arduino Due TX1 (pin 18)
 
 const int LCD_RS = A3;
 const int LCD_E = A4;
@@ -42,7 +42,11 @@ int pressure_value = 0;
 int pressure = 0;
 int count = 10;
 
-SoftwareSerial sim800l(SIM800L_RX_PIN, SIM800L_TX_PIN);
+//SoftwareSerial sim800l(SIM800L_RX_PIN, SIM800L_TX_PIN);
+
+
+
+
 String phoneNumber = "+1234567890";
 String message = "تم ملء السلة";
 
@@ -70,7 +74,8 @@ void setup() {
 
   lcd.begin(16, 2);
 
-  sim800l.begin(9600);
+  Serial1.begin(9600); // Initialize Serial1 for communication with SIM800L
+
   updateBasketStatus(0);
   updateDoorStatus();
 }
@@ -116,6 +121,7 @@ void updateBasketStatus(int distance) {
 
 void compressTrash() {
   updatePressure();
+
   while (pressure < PRESSURE_THRESHOLD) {
     while (digitalRead(LIMIT_SWITCH_PIN) == HIGH) {
       digitalWrite(MOTOR_A_IN1, HIGH);
@@ -146,13 +152,13 @@ void updatePressure() {
 }
 
 void sendAlertMessage() {
-  sim800l.print("AT+CMGS=\"");
-  sim800l.print(phoneNumber);
-  sim800l.println("\"");
+  Serial1.print("AT+CMGS=\"");
+  Serial1.print(phoneNumber);
+  Serial1.println("\"");
   delay(100);
-  sim800l.print(message);
+  Serial1.print(message);
   delay(100);
-  sim800l.write(26);
+  Serial1.write(26);
   delay(100);
 }
 
@@ -178,9 +184,14 @@ void updateLCD(int distance) {
   lcd.print("%");
 
   lcd.setCursor(0, 1);
-  if (door_closed) {
+
+  if (door_closed && !basket_full  ) {
+    lcd.print("Compressing...");
+  } else if (door_closed) {
     lcd.print("Door: CLOSED");
   } else {
     lcd.print("Door: OPEN");
   }
+
+
 }
