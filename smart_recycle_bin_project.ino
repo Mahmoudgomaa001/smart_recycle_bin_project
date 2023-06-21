@@ -82,7 +82,7 @@ void setup() {
 
   // Initialize the Serial1 communication for the SIM800L module
   Serial1.begin(9600);
-
+  Serial.begin(9600);
   // Update the initial system state
   updateBasketStatus(0);
   updateDoorStatus();
@@ -99,13 +99,13 @@ void loop() {
 
 void updateBasketStatus(int distance) {
   // Update the system state based on the distance value
-  if (distance >= MAX_DISTANCE) {
+  if (distance <= MIN_DISTANCE) {
     digitalWrite(GREEN_LED_PIN, HIGH);
     digitalWrite(YELLOW_LED_PIN, LOW);
     digitalWrite(RED_LED_PIN, LOW);
-    basket_full = false;
+    basket_full = true;
     is_compressing = false;
-  } else if (distance <= MIN_DISTANCE) {
+  } else if (distance > MIN_DISTANCE) {
     digitalWrite(GREEN_LED_PIN, LOW);
     digitalWrite(YELLOW_LED_PIN, HIGH);
     digitalWrite(RED_LED_PIN, LOW);
@@ -152,14 +152,14 @@ void compressTrash() {
 
   // Set the motor direction and speed based on the pressure value
   if (pressure < MAX_PRESSURE) {
-    `
+
     motorDir1 = HIGH;
     motorDir2 = LOW;
     //    motorSpeed = 150;  // Set the motor speed to 150 (out of 255)
   } else {
     motorDir1 = LOW;
     motorDir2 = LOW;
-    
+
     return;
     //    motorSpeed = 0;  // Stop the motor
   }
@@ -257,7 +257,7 @@ void sendAlertMessage() {
 
 void updateLCD(int distance) {
   // Calculate the fill percentage
-  int fillPercentage = map(distance, 0, MAX_DISTANCE, 0, 100);
+  int fillPercentage = map(distance, MAX_DISTANCE,MIN_DISTANCE , 0, 100);
 
   // Update the LCD display
   lcd.clear();
