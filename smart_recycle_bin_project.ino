@@ -9,6 +9,9 @@ const int LOADCELL_SCK_PIN = 5;
 const int MOTOR_A_EN = 6;
 const int MOTOR_A_IN1 = 7;
 const int MOTOR_A_IN2 = 8;
+const int MOTOR_A_IN3 = 7;
+const int MOTOR_A_IN4 = 8;
+
 const int GREEN_LED_PIN = 9;
 const int YELLOW_LED_PIN = 10;
 const int RED_LED_PIN = 11;
