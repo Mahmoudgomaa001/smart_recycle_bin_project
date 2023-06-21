@@ -127,6 +127,11 @@ void updateBasketStatus(int distance) {
 }
 
 void compressTrash() {
+  // Define the variables for the motor speed and direction
+ 
+  int motorDir1 = HIGH;
+  int motorDir2 = LOW;
+
   // Compress the trash and update the pressure value
   updatePressure();
 
@@ -138,30 +143,69 @@ void compressTrash() {
     is_compressing = true;
   }
 
-  digitalWrite(MOTOR_A_EN, HIGH);
-  digitalWrite(MOTOR_A_IN1, HIGH);
-  digitalWrite(MOTOR_A_IN2, LOW);
-
-  while (pressure < MAX_PRESSURE) {
-    updatePressure();
-
-    if (digitalRead(LIMIT_SWITCH_PIN) == LOW) {
-      digitalWrite(MOTOR_A_EN, LOW);
-      digitalWrite(MOTOR_A_IN1, LOW);
-      digitalWrite(MOTOR_A_IN2, LOW);
-      delay(1000);
-      digitalWrite(MOTOR_A_EN, HIGH);
-      digitalWrite(MOTOR_A_IN1, LOW);
-      digitalWrite(MOTOR_A_IN2, HIGH);
-      delay(1000);
-    }
+  // Set the motor direction and speed based on the pressure value
+  if (pressure < MAX_PRESSURE) {
+    motorDir1 = HIGH;
+    motorDir2 = LOW;
+    motorSpeed = 150;  // Set the motor speed to 150 (out of 255)
+  } else {
+    motorDir1 = LOW;
+    motorDir2 = LOW;
+    motorSpeed = 0;  // Stop the motor
   }
 
-  digitalWrite(MOTOR_A_EN, LOW);
+  // Set the motor direction
+  digitalWrite(MOTOR_A_IN1, motorDir1);
+  digitalWrite(MOTOR_A_IN2, motorDir2);
+
+  // Set the motor speed using PWM
+  analogWrite(MOTOR_A_EN, motorSpeed);
+
+  // Wait for the limit switch to be pressed
+  while (digitalRead(LIMIT_SWITCH_PIN) == HIGH) {
+    // Do nothing
+  }
+
+  // Reverse the motor direction
+  digitalWrite(MOTOR_A_IN1, LOW);
+  digitalWrite(MOTOR_A_IN2, HIGH);
+  delay(1000);
+
+  // Set the motor speed using PWM
+  analogWrite(MOTOR_A_EN, motorSpeed);
+
+  // Wait for the limit switch to be released
+  while (digitalRead(LIMIT_SWITCH_PIN) == LOW) {
+    // Do nothing
+  }
+
+  // Stop the motor
   digitalWrite(MOTOR_A_IN1, LOW);
   digitalWrite(MOTOR_A_IN2, LOW);
-}
+  digitalWrite(MOTOR_A_EN, LOW);
 
+  // Update the pressure value
+  updatePressure();
+
+  // Reset the compression count
+  compression_count = 0;
+
+  // Update the LCD display
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Trash compressed");
+  lcd.setCursor(0, 1);
+  lcd.print("Pressure: ");
+  lcd.print(pressure);
+  lcd.print(" kPa");
+
+  // Wait for 5 seconds
+  delay(5000);
+
+  // Update the system state
+  is_compressing = false;
+  updateBasketStatus(getDistance());
+}
 void updateDoorStatus() {
   // Update the status of the door
   if (digitalRead(DOOR_SWITCH_PIN) == LOW) {
@@ -201,19 +245,16 @@ void sendAlertMessage() {
 }
 
 void updateLCD(int distance) {
+  // Calculate the fill percentage
+  int fillPercentage = map(distance, 0, MAX_DISTANCE, 0, 100);
+
   // Update the LCD display
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Distance: ");
-  lcd.print(distance);
-  lcd.print(" cm");
-
+  lcd.print("Fill Percentage:");
   lcd.setCursor(0, 1);
-  if (basket_full) {
-    lcd.print("Basket Full");
-  } else {
-    lcd.print("            ");
-  }
+  lcd.print(fillPercentage);
+  lcd.print("%");
 }
 
 int getDistance() {
