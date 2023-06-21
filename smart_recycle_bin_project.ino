@@ -1,35 +1,35 @@
 #include <LiquidCrystal.h>
+#include <DFRobot_HX711.h>
 
 // Define the pin numbers for the components
-const int TRIGGER_PIN = 2;
-const int ECHO_PIN = 3;
-const int PRESSURE_SENSOR_PIN = A0;
-const int LOADCELL_DOUT_PIN = 4;
-const int LOADCELL_SCK_PIN = 5;
-const int MOTOR_A_EN = 6;
-const int MOTOR_A_IN1 = 7;
-const int MOTOR_A_IN2 = 8;
-const int MOTOR_A_IN3 = 7;
-const int MOTOR_A_IN4 = 8;
+const int TRIGGER_PIN = 12;
+const int ECHO_PIN = 13;
 
-const int GREEN_LED_PIN = 9;
+const int LOADCELL_DOUT_PIN = 7;
+const int LOADCELL_SCK_PIN = 6;
+const int MOTOR_A_EN = 10;
+const int MOTOR_A_IN1 = 18;
+const int MOTOR_A_IN2 = 20;
+const int motorSpeed = 255;
+
+const int GREEN_LED_PIN = 16;
 const int YELLOW_LED_PIN = 10;
-const int RED_LED_PIN = 11;
-const int LIMIT_SWITCH_PIN = 12;
-const int DOOR_SWITCH_PIN = 13;
+const int RED_LED_PIN = 17;
+const int LIMIT_SWITCH_PIN = 14;
+const int DOOR_SWITCH_PIN = 15;
 const int SIM800L_TX_PIN = 19;
 const int SIM800L_RX_PIN = 18;
-const int LCD_RS = A3;
-const int LCD_E = A4;
-const int LCD_D4 = A5;
-const int LCD_D5 = A6;
-const int LCD_D6 = A7;
-const int LCD_D7 = A8;
+const int LCD_RS = 5;
+const int LCD_E = 4;
+const int LCD_D4 = 3;
+const int LCD_D5 = 2;
+const int LCD_D6 = 1;
+const int LCD_D7 = 0;
 
 // Define the values for the distance and pressure thresholds, as well as the maximum compression count and delay times
-const int MAX_DISTANCE = 70;
+const int MAX_DISTANCE = 75;
 const int MIN_DISTANCE = 30;
-const int MAX_PRESSURE = 2;
+const int MAX_PRESSURE = 150;
 const int PRESSURE_THRESHOLD = 1;
 const int MAX_COMPRESSION_COUNT = 3;
 const int OPEN_DELAY = 5000;
@@ -43,6 +43,10 @@ bool is_compressing = false;
 int pressure_value = 0;
 int pressure = 0;
 int count = 10;
+
+
+DFRobot_HX711 MyScale(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+
 
 // Define the phone number and message for the alert message
 String phoneNumber = "+1234567890";
@@ -63,7 +67,7 @@ void setup() {
   // Initialize the pin modes for the components
   pinMode(TRIGGER_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
-  pinMode(PRESSURE_SENSOR_PIN, INPUT);
+  //  pinMode(PRESSURE_SENSOR_PIN, INPUT);
   pinMode(GREEN_LED_PIN, OUTPUT);
   pinMode(YELLOW_LED_PIN, OUTPUT);
   pinMode(RED_LED_PIN, OUTPUT);
@@ -131,7 +135,7 @@ void updateBasketStatus(int distance) {
 
 void compressTrash() {
   // Define the variables for the motor speed and direction
- 
+
   int motorDir1 = HIGH;
   int motorDir2 = LOW;
 
@@ -148,13 +152,16 @@ void compressTrash() {
 
   // Set the motor direction and speed based on the pressure value
   if (pressure < MAX_PRESSURE) {
+    `
     motorDir1 = HIGH;
     motorDir2 = LOW;
-    motorSpeed = 150;  // Set the motor speed to 150 (out of 255)
+    //    motorSpeed = 150;  // Set the motor speed to 150 (out of 255)
   } else {
     motorDir1 = LOW;
     motorDir2 = LOW;
-    motorSpeed = 0;  // Stop the motor
+    
+    return;
+    //    motorSpeed = 0;  // Stop the motor
   }
 
   // Set the motor direction
@@ -165,9 +172,9 @@ void compressTrash() {
   analogWrite(MOTOR_A_EN, motorSpeed);
 
   // Wait for the limit switch to be pressed
-  while (digitalRead(LIMIT_SWITCH_PIN) == HIGH) {
-    // Do nothing
-  }
+  //  while (digitalRead(LIMIT_SWITCH_PIN) == HIGH) {
+  //    // Do nothing
+  //  }
 
   // Reverse the motor direction
   digitalWrite(MOTOR_A_IN1, LOW);
@@ -178,9 +185,9 @@ void compressTrash() {
   analogWrite(MOTOR_A_EN, motorSpeed);
 
   // Wait for the limit switch to be released
-  while (digitalRead(LIMIT_SWITCH_PIN) == LOW) {
-    // Do nothing
-  }
+  //  while (digitalRead(LIMIT_SWITCH_PIN) == LOW) {
+  //    // Do nothing
+  //  }
 
   // Stop the motor
   digitalWrite(MOTOR_A_IN1, LOW);
@@ -216,6 +223,7 @@ void updateDoorStatus() {
   } else {
     door_closed = false;
   }
+  door_closed = true;
 }
 
 void updatePressure() {
@@ -223,7 +231,7 @@ void updatePressure() {
   int pressure_sum = 0;
 
   for (int i = 0; i < count; i++) {
-    pressure_value = analogRead(PRESSURE_SENSOR_PIN);
+    pressure_value = MyScale.readWeight();
     pressure_sum += pressure_value;
   }
 
